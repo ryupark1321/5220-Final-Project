@@ -10,3 +10,9 @@ tar -xvzf imagenette2.tgz
 module load pytorch/2.0.1
 python crop.py
 ```
+
+To compile vgg.cu, 
+```
+module load cudnn
+nvcc vgg.cu -O3 -g -std=c++20 -arch=sm_70 -I$CUDNN_DIR/include -L$CUDNN_DIR/lib -lcudnn -I/opt/nvidia/hpc_sdk/Linux_x86_64/23.9/math_libs/12.2/include -L/opt/nvidia/hpc_sdk/Linux_x86_64/23.9/math_libs/12.2/lib64 -lcublas
+```
