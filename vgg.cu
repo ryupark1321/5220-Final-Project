@@ -4,12 +4,21 @@
 #include <vector>
 #include <numeric>
 #include <chrono>
+#include <algorithm>
 #include <cstdio>
 #include <stdio.h>
 /* Includes, cuda */
 #include <cuda_runtime.h>
 #include <cudnn.h>
 #include <cublas_v2.h>
+#include "opencv2/opencv.hpp"
+#include <opencv2/core/utility.hpp>
+
+#define IMAGE_H (224)
+#define IMAGE_W (224)
+#define IMAGE_D (3)
+#define IMAGE_SIZE (IMAGE_H * IMAGE_W * IMAGE_D)
+#define BATCH_SIZE (1)
 
 struct Tensor4d
 {
@@ -134,7 +143,7 @@ void cuConv2D(float *input, float *output, int w, int h, int c, int n, int k,
     // datatype
     cudnnDataType_t dataType;
     dataType = CUDNN_DATA_FLOAT;
-    
+
     // convolution mode
     cudnnConvolutionMode_t mode;
     mode = CUDNN_CONVOLUTION;
@@ -163,7 +172,7 @@ void cuConv2D(float *input, float *output, int w, int h, int c, int n, int k,
 
     // filter desc
     Filter4d w_desc(k, c, filter_w, filter_h);
-    
+
     // get conv dim
     cudnnGetConvolution2dForwardOutputDim(conv_desc,
                                           x_desc.desc,
@@ -188,8 +197,8 @@ void cuConv2D(float *input, float *output, int w, int h, int c, int n, int k,
                                          requestAlgoCount,
                                          &returnedAlgoCount,
                                          &perfResults);
-    
-    // what algorithm is choosed 
+
+    // what algorithm is choosed
     fwd_algo = perfResults.algo;
 
     // get workspace size
@@ -210,11 +219,10 @@ void cuConv2D(float *input, float *output, int w, int h, int c, int n, int k,
     cudnnCreateActivationDescriptor(&activationDesc);
     auto code3 = cudnnSetActivationDescriptor(activationDesc, CUDNN_ACTIVATION_RELU, CUDNN_NOT_PROPAGATE_NAN, 100);
 
-
     Bias4d bias(k, c, w, h);
 
     auto start = std::chrono::steady_clock::now();
-    
+
     // fwd conv
     auto code2 = cudnnConvolutionBiasActivationForward(cudnn_handle,
                                                        &alpha,
@@ -235,7 +243,7 @@ void cuConv2D(float *input, float *output, int w, int h, int c, int n, int k,
                                                        h_desc.desc,
                                                        h_desc.data);
     // another choice
-    // 
+    //
     // auto code2 = cudnnConvolutionForward(cudnn_handle,
     //                                      &alpha,
     //                                      x_desc.desc,
@@ -280,15 +288,15 @@ void cuMaxPool(float *input, float *output, int w, int h, int c, int n)
     cudnnPoolingDescriptor_t pooling_desc;
     cudnnCreatePoolingDescriptor(&pooling_desc);
     cudnnSetPooling2dDescriptor(
-        pooling_desc,            //descriptor handle
-        CUDNN_POOLING_MAX,       //mode - max pooling
-        CUDNN_NOT_PROPAGATE_NAN, //NaN propagation mode
-        2,                       //window height
-        2,                       //window width
-        0,                       //vertical padding
-        0,                       //horizontal padding
-        2,                       //vertical stride
-        2);                      //horizontal stride
+        pooling_desc,            // descriptor handle
+        CUDNN_POOLING_MAX,       // mode - max pooling
+        CUDNN_NOT_PROPAGATE_NAN, // NaN propagation mode
+        2,                       // window height
+        2,                       // window width
+        0,                       // vertical padding
+        0,                       // horizontal padding
+        2,                       // vertical stride
+        2);                      // horizontal stride
 
     // tensor desc
     Tensor4d x_desc(n, c, h, w);
@@ -303,14 +311,14 @@ void cuMaxPool(float *input, float *output, int w, int h, int c, int n)
     auto start = std::chrono::steady_clock::now();
     // fwd pool
     cudnnPoolingForward(
-        cudnn_handle, //cuDNN context handle
-        pooling_desc, //pooling descriptor handle
-        &alpha,       //alpha scaling factor
-        x_desc.desc,  //input tensor descriptor
-        x_desc.data,  //input data pointer to GPU memory
-        &beta,        //beta scaling factor
-        h_desc.desc,  //output tensor descriptor
-        h_desc.data); //output data pointer from GPU memory
+        cudnn_handle, // cuDNN context handle
+        pooling_desc, // pooling descriptor handle
+        &alpha,       // alpha scaling factor
+        x_desc.desc,  // input tensor descriptor
+        x_desc.data,  // input data pointer to GPU memory
+        &beta,        // beta scaling factor
+        h_desc.desc,  // output tensor descriptor
+        h_desc.data); // output data pointer from GPU memory
     code = cudaDeviceSynchronize();
 
     auto end = std::chrono::steady_clock::now();
@@ -359,7 +367,8 @@ void cuFC(float *input, float *output, int left, int right)
     cudaDeviceSynchronize();
     auto end = std::chrono::steady_clock::now();
     int fwd_time = static_cast<int>(std::chrono::duration<double,
-                                    std::micro>(end - start).count());
+                                                          std::micro>(end - start)
+                                        .count());
 
     std::cout << " " << fwd_time << " ms" << std::endl;
 
@@ -371,19 +380,49 @@ void cuFC(float *input, float *output, int left, int right)
     cudaFree(d_C);
 }
 
+cv::Mat load_image(std::string example)
+{
+    cv::Mat image = cv::imread(example, cv::IMREAD_COLOR);
+    image.convertTo(image, CV_32FC3);
+    cv::normalize(image, image, 0, 1, cv::NORM_MINMAX);
+    return image;
+}
+
+std::pair<int, cv::Mat *> load_all()
+{
+    std::string scratch = getenv("SCRATCH");
+    std::string img_path = scratch + "/imagenette/imagenette2/train/*.JPEG";
+    // cv::String img_path = scratch + "/imagenette/imagenette2/val/n03888257/*.JPEG";
+    std::vector<cv::String> new_filename_vector;
+    cv::glob(img_path, new_filename_vector, true);
+    std::cout << new_filename_vector.size() << "\n";
+
+    cv::Mat *data = new cv::Mat[new_filename_vector.size()];
+    for (int i = 0; i < new_filename_vector.size(); i++)
+    {
+        data[i] = load_image(new_filename_vector[i]);
+    }
+    return {new_filename_vector.size(), data};
+}
+
 int main()
 {
     std::srand(std::time(0));
 
     float *input;
     float *output;
+    auto res = load_all();
+    int len = res.first;
+    cv::Mat *data = res.second;
+    input = (float *)malloc(len * IMAGE_SIZE);
+
+    for (int i = 0; i < len; i++)
+    {
+        float *fptr = data[i].ptr<float>(0);
+        std::copy(fptr, fptr + IMAGE_SIZE, input + IMAGE_SIZE * i);
+    }
 
     int data_size = 224 * 224 * 3 * 1;
-    input = (float *)malloc(data_size * sizeof(float));
-    for (int i = 0; i < data_size; i++)
-    {
-        input[i] = (float)std::rand() / RAND_MAX;
-    }
 
     // ===============  1 =====================
     std::cout << "CONV 224x224x64";
@@ -496,7 +535,7 @@ int main()
     std::cout << "FC 1000";
     output = (float *)malloc(1000 * sizeof(float));
     cuFC(input, output, 4096, 1000);
-    
+
     free(input);
     free(output);
 }
