@@ -29,7 +29,7 @@
 #define IMAGE_D (3)
 #define IMAGE_SIZE (IMAGE_H * IMAGE_W * IMAGE_D)
 #define BATCH_SIZE (1)
-
+#define DEBUG (1)
 #define MSIZE(a) ((a) * sizeof(value_type))
 
 typedef enum
@@ -42,13 +42,12 @@ typedef enum
   SOFTMAX_LAYER = 5
 } LayerType;
 
-#define BATCH_SIZE (32)
+#define BATCH_SIZE (1)
 #define IMAGE_H (224)
 #define IMAGE_W (224)
 #define IMAGE_D (3)
 #define DIM (224)
 #define N (IMAGE_D * IMAGE_H * IMAGE_W)
-#define DEBUG (0)
 
 #define minn(a, b) (a < b ? a : b)
 #define maxx(a, b) (a > b ? a : b)
@@ -160,49 +159,49 @@ void setTensorDesc(cudnnTensorDescriptor_t &tensorDesc,
   Layer_t<value_type> conv3act;                                                                                                        \
   conv3act.initActLayer("conv3act", conv3.outputs, BATCH_SIZE);                                                                        \
   Layer_t<value_type> conv4;                                                                                                           \
-  conv4.initConvLayer("conv4", pool1.kernel_dim, 128, 3, 1, pool1.out_width, pool1.out_height, pool1.outputs, BATCH_SIZE);             \
+  conv4.initConvLayer("conv4", 128, 128, 3, 1, pool1.out_width, pool1.out_height, pool1.outputs, BATCH_SIZE);             \
   Layer_t<value_type> conv4act;                                                                                                        \
   conv4act.initActLayer("conv4act", conv4.outputs, BATCH_SIZE);                                                                        \
   Layer_t<value_type> pool2;                                                                                                           \
   pool2.initPoolLayer("pool2", 2, 2, conv4, BATCH_SIZE);                                                                               \
   Layer_t<value_type> conv5;                                                                                                           \
-  conv2.initConvLayer("conv5", pool2.kernel_dim, 256, 3, 1, pool2.out_width, pool2.out_height, pool2.outputs, BATCH_SIZE);             \
+  conv5.initConvLayer("conv5", pool2.kernel_dim, 256, 3, 1, pool2.out_width, pool2.out_height, pool2.outputs, BATCH_SIZE);             \
   Layer_t<value_type> conv5act;                                                                                                        \
-  conv3act.initActLayer("conv5act", conv5.outputs, BATCH_SIZE);                                                                        \
+  conv5act.initActLayer("conv5act", conv5.outputs, BATCH_SIZE);                                                                        \
   Layer_t<value_type> conv6;                                                                                                           \
-  conv2.initConvLayer("conv6", pool2.kernel_dim, 256, 3, 1, pool2.out_width, pool2.out_height, pool2.outputs, BATCH_SIZE);             \
+  conv6.initConvLayer("conv6", 256, 256, 3, 1, pool2.out_width, pool2.out_height, pool2.outputs, BATCH_SIZE);             \
   Layer_t<value_type> conv6act;                                                                                                        \
-  conv3act.initActLayer("conv6act", conv6.outputs, BATCH_SIZE);                                                                        \
+  conv6act.initActLayer("conv6act", conv6.outputs, BATCH_SIZE);                                                                        \
   Layer_t<value_type> conv7;                                                                                                           \
-  conv2.initConvLayer("conv7", pool2.kernel_dim, 256, 3, 1, pool2.out_width, pool2.out_height, pool2.outputs, BATCH_SIZE);             \
+  conv7.initConvLayer("conv7", 256, 256, 3, 1, pool2.out_width, pool2.out_height, pool2.outputs, BATCH_SIZE);             \
   Layer_t<value_type> conv7act;                                                                                                        \
-  conv3act.initActLayer("conv7act", conv7.outputs, BATCH_SIZE);                                                                        \
+  conv7act.initActLayer("conv7act", conv7.outputs, BATCH_SIZE);                                                                        \
   Layer_t<value_type> pool3;                                                                                                           \
   pool3.initPoolLayer("pool3", 2, 2, conv7, BATCH_SIZE);                                                                               \
   Layer_t<value_type> conv8;                                                                                                           \
-  conv2.initConvLayer("conv8", pool3.kernel_dim, 512, 3, 1, pool3.out_width, pool3.out_height, pool3.outputs, BATCH_SIZE);             \
+  conv8.initConvLayer("conv8", pool3.kernel_dim, 512, 3, 1, pool3.out_width, pool3.out_height, pool3.outputs, BATCH_SIZE);             \
   Layer_t<value_type> conv8act;                                                                                                        \
   conv8act.initActLayer("conv8act", conv8.outputs, BATCH_SIZE);                                                                        \
   Layer_t<value_type> conv9;                                                                                                           \
-  conv2.initConvLayer("conv9", pool3.kernel_dim, 512, 3, 1, pool3.out_width, pool3.out_height, pool3.outputs, BATCH_SIZE);             \
+  conv9.initConvLayer("conv9", 512, 512, 3, 1, pool3.out_width, pool3.out_height, pool3.outputs, BATCH_SIZE);             \
   Layer_t<value_type> conv9act;                                                                                                        \
   conv9act.initActLayer("conv9act", conv9.outputs, BATCH_SIZE);                                                                        \
   Layer_t<value_type> conv10;                                                                                                          \
-  conv2.initConvLayer("conv10", pool3.kernel_dim, 512, 3, 1, pool3.out_width, pool3.out_height, pool3.outputs, BATCH_SIZE);            \
+  conv10.initConvLayer("conv10", 512, 512, 3, 1, pool3.out_width, pool3.out_height, pool3.outputs, BATCH_SIZE);            \
   Layer_t<value_type> conv10act;                                                                                                       \
   conv10act.initActLayer("conv10act", conv10.outputs, BATCH_SIZE);                                                                     \
   Layer_t<value_type> pool4;                                                                                                           \
   pool4.initPoolLayer("pool4", 2, 2, conv10, BATCH_SIZE);                                                                              \
   Layer_t<value_type> conv11;                                                                                                          \
-  conv2.initConvLayer("conv11", pool4.kernel_dim, 512, 3, 1, pool4.out_width, pool4.out_height, pool4.outputs, BATCH_SIZE);            \
+  conv11.initConvLayer("conv11", pool4.kernel_dim, 512, 3, 1, pool4.out_width, pool4.out_height, pool4.outputs, BATCH_SIZE);            \
   Layer_t<value_type> conv11act;                                                                                                       \
   conv11act.initActLayer("conv11act", conv11.outputs, BATCH_SIZE);                                                                     \
   Layer_t<value_type> conv12;                                                                                                          \
-  conv2.initConvLayer("conv12", pool4.kernel_dim, 512, 3, 1, pool4.out_width, pool4.out_height, pool4.outputs, BATCH_SIZE);            \
+  conv12.initConvLayer("conv12", 512, 512, 3, 1, pool4.out_width, pool4.out_height, pool4.outputs, BATCH_SIZE);            \
   Layer_t<value_type> conv12act;                                                                                                       \
   conv12act.initActLayer("conv12act", conv12.outputs, BATCH_SIZE);                                                                     \
   Layer_t<value_type> conv13;                                                                                                          \
-  conv2.initConvLayer("conv13", pool4.kernel_dim, 512, 3, 1, pool4.out_width, pool4.out_height, pool4.outputs, BATCH_SIZE);            \
+  conv13.initConvLayer("conv13", 512, 512, 3, 1, pool4.out_width, pool4.out_height, pool4.outputs, BATCH_SIZE);            \
   Layer_t<value_type> conv13act;                                                                                                       \
   conv13act.initActLayer("conv13act", conv13.outputs, BATCH_SIZE);                                                                     \
   Layer_t<value_type> pool5;                                                                                                           \
@@ -370,7 +369,8 @@ struct Layer_t
     default:
       FatalError("Unsupported data type");
     }
-    tensorFormat = CUDNN_TENSOR_NCHW;
+    // tensorFormat = CUDNN_TENSOR_NCHW;
+    tensorFormat = CUDNN_TENSOR_NHWC;
     data_d = bias_d = output_d = del_d = NULL;
     oneVec_d = NULL;
     n = 0;
@@ -420,7 +420,6 @@ struct Layer_t
     if (oneVec_d != NULL)
       checkCudaErrors(cudaFree(oneVec_d));
     checkCudaErrors(cudaMalloc(&oneVec_d, MSIZE(n)));
-
     FillOnes<<<1, n>>>(oneVec_d, n);
 
     if (layerType == CONV_LAYER)
@@ -533,7 +532,7 @@ struct Layer_t
                                           kernel_dim, kernel_dim));
 
     checkCUDNN(cudnnSetConvolution2dDescriptor(convDesc,
-                                               0, 0,           //	padding
+                                               1, 1,           //	padding
                                                stride, stride, //	stride
                                                1, 1,           // 	upscaling
                                                CUDNN_CROSS_CORRELATION, cudnnDataType_t::CUDNN_DATA_FLOAT));
@@ -658,7 +657,6 @@ struct Layer_t
     checkCUDNN(cudnnCreateTensorDescriptor(&convBiasTensorDesc));
 
     setHandles(_batch_size);
-
     copyDataToDevice();
   }
 
@@ -710,7 +708,6 @@ struct Layer_t
     checkCudaErrors(cudaMalloc(&bias_d, MSIZE(b_size)));
 
     setHandles(_batch_size);
-
     copyDataToDevice();
   }
 
@@ -752,7 +749,7 @@ struct Layer_t
 
   void copyDataToDevice()
   {
-    if (data_h != NULL)
+    if (data_h != NULL) 
       checkCudaErrors(cudaMemcpy(data_d, data_h, MSIZE(w_size), cudaMemcpyHostToDevice));
     if (bias_h != NULL)
       checkCudaErrors(cudaMemcpy(bias_d, bias_h, MSIZE(b_size), cudaMemcpyHostToDevice));
@@ -1596,7 +1593,7 @@ int main(int argc, char **argv)
   int len = res.first;
   len = 1;
   cv::Mat *data = res.second;
-  input = (float *)malloc(len * IMAGE_SIZE);
+  input = (float *)malloc(len * IMAGE_SIZE * sizeof(float));
   for (int i = 0; i < len; i++)
   {
       float *fptr = data[i].ptr<float>(0);
