@@ -536,6 +536,11 @@ int main()
     output = (float *)malloc(1000 * sizeof(float));
     cuFC(input, output, 4096, 1000);
 
+<<<<<<< Updated upstream
+=======
+    
+    
+>>>>>>> Stashed changes
     free(input);
     free(output);
 }
