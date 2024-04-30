@@ -22,7 +22,7 @@
 #define CUBLAS_GEAM cublasSgeam
 #define CUBLAS_GEMV cublasSgemv
 #define CUBLAS_SCAL cublasSscal
-#define LEARNING_RATE (0.01)
+#define LEARNING_RATE (0.001)
 
 #define IMAGE_SIZE (IMAGE_H * IMAGE_W * IMAGE_D)
 #define BATCH_SIZE (1)
@@ -59,52 +59,53 @@ typedef enum
 
 __global__ void FillOnes(MATRIX_DATA_TYPE *vec, int size)
 {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= size)
-        return;
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx >= size)
+    return;
 
-    vec[idx] = 1.0f;
-}
-
-template <typename value_type> 
-void printHostVector(std::string str, int size, value_type* vec){
-    println(str<<" ("<<size<<") ");
-    for (int i = 0; i < minn(size,400); i++)
-    {
-        print(vec[i] << " ");
-    }
-    println(" "); 
+  vec[idx] = 1.0f;
 }
 
 template <typename value_type>
-void printDeviceVector(std::string str, int size, value_type* vec_d, int n=1)
+void printHostVector(std::string str, int size, value_type *vec)
 {
-    for (int i = 0; i < n; ++i)
-    {    
-        value_type* vec;
-        vec = new value_type[size];
-        cudaDeviceSynchronize();
-        cudaMemcpy(vec, vec_d+i*size, MSIZE(size), cudaMemcpyDeviceToHost);
-        printHostVector(str, size, vec);
-        delete [] vec;
-    }
+  println(str << " (" << size << ") ");
+  for (int i = 0; i < minn(size, 400); i++)
+  {
+    print(vec[i] << " ");
+  }
+  println(" ");
 }
 
-template <class value_type>
-void printDeviceVector(int size, value_type* vec_d)
+template <typename value_type>
+void printDeviceVector(std::string str, int size, value_type *vec_d, int n = 1)
 {
+  for (int i = 0; i < n; ++i)
+  {
     value_type *vec;
     vec = new value_type[size];
     cudaDeviceSynchronize();
-    cudaMemcpy(vec, vec_d, MSIZE(size), cudaMemcpyDeviceToHost);
-    std::cout.precision(5);
-    std::cout.setf( std::ios::fixed, std::ios::floatfield );
-    for (int i = 0; i < size; i++)
-    {
-        print(value_type(vec[i]) << " ");
-    }
-    println(" ");
-    delete [] vec;
+    cudaMemcpy(vec, vec_d + i * size, MSIZE(size), cudaMemcpyDeviceToHost);
+    printHostVector(str, size, vec);
+    delete[] vec;
+  }
+}
+
+template <class value_type>
+void printDeviceVector(int size, value_type *vec_d)
+{
+  value_type *vec;
+  vec = new value_type[size];
+  cudaDeviceSynchronize();
+  cudaMemcpy(vec, vec_d, MSIZE(size), cudaMemcpyDeviceToHost);
+  std::cout.precision(5);
+  std::cout.setf(std::ios::fixed, std::ios::floatfield);
+  for (int i = 0; i < size; i++)
+  {
+    print(value_type(vec[i]) << " ");
+  }
+  println(" ");
+  delete[] vec;
 }
 
 void setTensorDesc(cudnnTensorDescriptor_t &tensorDesc,
@@ -140,80 +141,80 @@ void setTensorDesc(cudnnTensorDescriptor_t &tensorDesc,
 #endif
 }
 
-#define NETWORK_ARCH                                                                                                                   \
-  Layer_t<value_type> conv1;                                                                                                           \
-  conv1.initConvLayer("conv1", /* inputs */ 3, /* outputs */ 64, /* kernel dim */ 3, /* stride */ 1, IMAGE_H, IMAGE_W, 0, BATCH_SIZE); \
-  Layer_t<value_type> conv1act;                                                                                                        \
-  conv1act.initActLayer("conv1act", conv1.outputs, BATCH_SIZE);                                                                        \
-  Layer_t<value_type> conv2;                                                                                                           \
+#define NETWORK_ARCH                                                                                                                                     \
+  Layer_t<value_type> conv1;                                                                                                                             \
+  conv1.initConvLayer("conv1", /* inputs */ 3, /* outputs */ 64, /* kernel dim */ 3, /* stride */ 1, IMAGE_H, IMAGE_W, 0, BATCH_SIZE);                   \
+  Layer_t<value_type> conv1act;                                                                                                                          \
+  conv1act.initActLayer("conv1act", conv1.outputs, BATCH_SIZE);                                                                                          \
+  Layer_t<value_type> conv2;                                                                                                                             \
   conv2.initConvLayer("conv2", /* inputs */ 64, /* outputs */ 64, /* kernel dim */ 3, /* stride */ 1, conv1.out_height, conv1.out_width, 0, BATCH_SIZE); \
-  Layer_t<value_type> conv2act;                                                                                                        \
-  conv2act.initActLayer("conv2act", conv2.outputs, BATCH_SIZE);                                                                       \
-  Layer_t<value_type> pool1;                                                                                                           \
-  pool1.initPoolLayer("pool1", 2, 2, conv2, BATCH_SIZE);                                                                               \
-  Layer_t<value_type> conv3;                                                                                                           \
-  conv3.initConvLayer("conv3", pool1.kernel_dim, 128, 3, 1, pool1.out_width, pool1.out_height, pool1.outputs, BATCH_SIZE);             \
-  Layer_t<value_type> conv3act;                                                                                                        \
-  conv3act.initActLayer("conv3act", conv3.outputs, BATCH_SIZE);                                                                        \
-  Layer_t<value_type> conv4;                                                                                                           \
-  conv4.initConvLayer("conv4", 128, 128, 3, 1, pool1.out_width, pool1.out_height, pool1.outputs, BATCH_SIZE);             \
-  Layer_t<value_type> conv4act;                                                                                                        \
-  conv4act.initActLayer("conv4act", conv4.outputs, BATCH_SIZE);                                                                        \
-  Layer_t<value_type> pool2;                                                                                                           \
-  pool2.initPoolLayer("pool2", 2, 2, conv4, BATCH_SIZE);                                                                               \
-  Layer_t<value_type> conv5;                                                                                                           \
-  conv5.initConvLayer("conv5", pool2.kernel_dim, 256, 3, 1, pool2.out_width, pool2.out_height, pool2.outputs, BATCH_SIZE);             \
-  Layer_t<value_type> conv5act;                                                                                                        \
-  conv5act.initActLayer("conv5act", conv5.outputs, BATCH_SIZE);                                                                        \
-  Layer_t<value_type> conv6;                                                                                                           \
-  conv6.initConvLayer("conv6", 256, 256, 3, 1, pool2.out_width, pool2.out_height, pool2.outputs, BATCH_SIZE);             \
-  Layer_t<value_type> conv6act;                                                                                                        \
-  conv6act.initActLayer("conv6act", conv6.outputs, BATCH_SIZE);                                                                        \
-  Layer_t<value_type> conv7;                                                                                                           \
-  conv7.initConvLayer("conv7", 256, 256, 3, 1, pool2.out_width, pool2.out_height, pool2.outputs, BATCH_SIZE);             \
-  Layer_t<value_type> conv7act;                                                                                                        \
-  conv7act.initActLayer("conv7act", conv7.outputs, BATCH_SIZE);                                                                        \
-  Layer_t<value_type> pool3;                                                                                                           \
-  pool3.initPoolLayer("pool3", 2, 2, conv7, BATCH_SIZE);                                                                               \
-  Layer_t<value_type> conv8;                                                                                                           \
-  conv8.initConvLayer("conv8", pool3.kernel_dim, 512, 3, 1, pool3.out_width, pool3.out_height, pool3.outputs, BATCH_SIZE);             \
-  Layer_t<value_type> conv8act;                                                                                                        \
-  conv8act.initActLayer("conv8act", conv8.outputs, BATCH_SIZE);                                                                        \
-  Layer_t<value_type> conv9;                                                                                                           \
-  conv9.initConvLayer("conv9", 512, 512, 3, 1, pool3.out_width, pool3.out_height, pool3.outputs, BATCH_SIZE);             \
-  Layer_t<value_type> conv9act;                                                                                                        \
-  conv9act.initActLayer("conv9act", conv9.outputs, BATCH_SIZE);                                                                        \
-  Layer_t<value_type> conv10;                                                                                                          \
-  conv10.initConvLayer("conv10", 512, 512, 3, 1, pool3.out_width, pool3.out_height, pool3.outputs, BATCH_SIZE);            \
-  Layer_t<value_type> conv10act;                                                                                                       \
-  conv10act.initActLayer("conv10act", conv10.outputs, BATCH_SIZE);                                                                     \
-  Layer_t<value_type> pool4;                                                                                                           \
-  pool4.initPoolLayer("pool4", 2, 2, conv10, BATCH_SIZE);                                                                              \
-  Layer_t<value_type> conv11;                                                                                                          \
-  conv11.initConvLayer("conv11", pool4.kernel_dim, 512, 3, 1, pool4.out_width, pool4.out_height, pool4.outputs, BATCH_SIZE);            \
-  Layer_t<value_type> conv11act;                                                                                                       \
-  conv11act.initActLayer("conv11act", conv11.outputs, BATCH_SIZE);                                                                     \
-  Layer_t<value_type> conv12;                                                                                                          \
-  conv12.initConvLayer("conv12", 512, 512, 3, 1, pool4.out_width, pool4.out_height, pool4.outputs, BATCH_SIZE);            \
-  Layer_t<value_type> conv12act;                                                                                                       \
-  conv12act.initActLayer("conv12act", conv12.outputs, BATCH_SIZE);                                                                     \
-  Layer_t<value_type> conv13;                                                                                                          \
-  conv13.initConvLayer("conv13", 512, 512, 3, 1, pool4.out_width, pool4.out_height, pool4.outputs, BATCH_SIZE);            \
-  Layer_t<value_type> conv13act;                                                                                                       \
-  conv13act.initActLayer("conv13act", conv13.outputs, BATCH_SIZE);                                                                     \
-  Layer_t<value_type> pool5;                                                                                                           \
-  pool5.initPoolLayer("pool5", 2, 2, conv13, BATCH_SIZE);                                                                              \
-  Layer_t<value_type> fc1;                                                                                                             \
-  fc1.initFCLayer("fc1", pool5.outputs, 4096, BATCH_SIZE);                                                                             \
-  Layer_t<value_type> fc1act;                                                                                                          \
-  fc1act.initActLayer("fc1act", fc1.outputs, BATCH_SIZE);                                                                              \
-  Layer_t<value_type> fc2;                                                                                                             \
-  fc2.initFCLayer("fc2", fc1act.outputs, 4096, BATCH_SIZE);                                                                            \
-  Layer_t<value_type> fc2act;                                                                                                          \
-  fc2act.initActLayer("fc2act", fc2.outputs, BATCH_SIZE);                                                                              \
-  Layer_t<value_type> fc3;                                                                                                             \
-  fc3.initFCLayer("fc3", fc2act.outputs, 1000, BATCH_SIZE);                                                                            \
-  Layer_t<value_type> fc3act;                                                                                                          \
+  Layer_t<value_type> conv2act;                                                                                                                          \
+  conv2act.initActLayer("conv2act", conv2.outputs, BATCH_SIZE);                                                                                          \
+  Layer_t<value_type> pool1;                                                                                                                             \
+  pool1.initPoolLayer("pool1", 2, 2, conv2, BATCH_SIZE);                                                                                                 \
+  Layer_t<value_type> conv3;                                                                                                                             \
+  conv3.initConvLayer("conv3", pool1.kernel_dim, 128, 3, 1, pool1.out_width, pool1.out_height, pool1.outputs, BATCH_SIZE);                               \
+  Layer_t<value_type> conv3act;                                                                                                                          \
+  conv3act.initActLayer("conv3act", conv3.outputs, BATCH_SIZE);                                                                                          \
+  Layer_t<value_type> conv4;                                                                                                                             \
+  conv4.initConvLayer("conv4", 128, 128, 3, 1, pool1.out_width, pool1.out_height, pool1.outputs, BATCH_SIZE);                                            \
+  Layer_t<value_type> conv4act;                                                                                                                          \
+  conv4act.initActLayer("conv4act", conv4.outputs, BATCH_SIZE);                                                                                          \
+  Layer_t<value_type> pool2;                                                                                                                             \
+  pool2.initPoolLayer("pool2", 2, 2, conv4, BATCH_SIZE);                                                                                                 \
+  Layer_t<value_type> conv5;                                                                                                                             \
+  conv5.initConvLayer("conv5", pool2.kernel_dim, 256, 3, 1, pool2.out_width, pool2.out_height, pool2.outputs, BATCH_SIZE);                               \
+  Layer_t<value_type> conv5act;                                                                                                                          \
+  conv5act.initActLayer("conv5act", conv5.outputs, BATCH_SIZE);                                                                                          \
+  Layer_t<value_type> conv6;                                                                                                                             \
+  conv6.initConvLayer("conv6", 256, 256, 3, 1, pool2.out_width, pool2.out_height, pool2.outputs, BATCH_SIZE);                                            \
+  Layer_t<value_type> conv6act;                                                                                                                          \
+  conv6act.initActLayer("conv6act", conv6.outputs, BATCH_SIZE);                                                                                          \
+  Layer_t<value_type> conv7;                                                                                                                             \
+  conv7.initConvLayer("conv7", 256, 256, 3, 1, pool2.out_width, pool2.out_height, pool2.outputs, BATCH_SIZE);                                            \
+  Layer_t<value_type> conv7act;                                                                                                                          \
+  conv7act.initActLayer("conv7act", conv7.outputs, BATCH_SIZE);                                                                                          \
+  Layer_t<value_type> pool3;                                                                                                                             \
+  pool3.initPoolLayer("pool3", 2, 2, conv7, BATCH_SIZE);                                                                                                 \
+  Layer_t<value_type> conv8;                                                                                                                             \
+  conv8.initConvLayer("conv8", pool3.kernel_dim, 512, 3, 1, pool3.out_width, pool3.out_height, pool3.outputs, BATCH_SIZE);                               \
+  Layer_t<value_type> conv8act;                                                                                                                          \
+  conv8act.initActLayer("conv8act", conv8.outputs, BATCH_SIZE);                                                                                          \
+  Layer_t<value_type> conv9;                                                                                                                             \
+  conv9.initConvLayer("conv9", 512, 512, 3, 1, pool3.out_width, pool3.out_height, pool3.outputs, BATCH_SIZE);                                            \
+  Layer_t<value_type> conv9act;                                                                                                                          \
+  conv9act.initActLayer("conv9act", conv9.outputs, BATCH_SIZE);                                                                                          \
+  Layer_t<value_type> conv10;                                                                                                                            \
+  conv10.initConvLayer("conv10", 512, 512, 3, 1, pool3.out_width, pool3.out_height, pool3.outputs, BATCH_SIZE);                                          \
+  Layer_t<value_type> conv10act;                                                                                                                         \
+  conv10act.initActLayer("conv10act", conv10.outputs, BATCH_SIZE);                                                                                       \
+  Layer_t<value_type> pool4;                                                                                                                             \
+  pool4.initPoolLayer("pool4", 2, 2, conv10, BATCH_SIZE);                                                                                                \
+  Layer_t<value_type> conv11;                                                                                                                            \
+  conv11.initConvLayer("conv11", pool4.kernel_dim, 512, 3, 1, pool4.out_width, pool4.out_height, pool4.outputs, BATCH_SIZE);                             \
+  Layer_t<value_type> conv11act;                                                                                                                         \
+  conv11act.initActLayer("conv11act", conv11.outputs, BATCH_SIZE);                                                                                       \
+  Layer_t<value_type> conv12;                                                                                                                            \
+  conv12.initConvLayer("conv12", 512, 512, 3, 1, pool4.out_width, pool4.out_height, pool4.outputs, BATCH_SIZE);                                          \
+  Layer_t<value_type> conv12act;                                                                                                                         \
+  conv12act.initActLayer("conv12act", conv12.outputs, BATCH_SIZE);                                                                                       \
+  Layer_t<value_type> conv13;                                                                                                                            \
+  conv13.initConvLayer("conv13", 512, 512, 3, 1, pool4.out_width, pool4.out_height, pool4.outputs, BATCH_SIZE);                                          \
+  Layer_t<value_type> conv13act;                                                                                                                         \
+  conv13act.initActLayer("conv13act", conv13.outputs, BATCH_SIZE);                                                                                       \
+  Layer_t<value_type> pool5;                                                                                                                             \
+  pool5.initPoolLayer("pool5", 2, 2, conv13, BATCH_SIZE);                                                                                                \
+  Layer_t<value_type> fc1;                                                                                                                               \
+  fc1.initFCLayer("fc1", pool5.outputs, 4096, BATCH_SIZE);                                                                                               \
+  Layer_t<value_type> fc1act;                                                                                                                            \
+  fc1act.initActLayer("fc1act", fc1.outputs, BATCH_SIZE);                                                                                                \
+  Layer_t<value_type> fc2;                                                                                                                               \
+  fc2.initFCLayer("fc2", fc1act.outputs, 4096, BATCH_SIZE);                                                                                              \
+  Layer_t<value_type> fc2act;                                                                                                                            \
+  fc2act.initActLayer("fc2act", fc2.outputs, BATCH_SIZE);                                                                                                \
+  Layer_t<value_type> fc3;                                                                                                                               \
+  fc3.initFCLayer("fc3", fc2act.outputs, 1000, BATCH_SIZE);                                                                                              \
+  Layer_t<value_type> fc3act;                                                                                                                            \
   fc3act.initSoftmaxLayer("fc3act", fc3.outputs, BATCH_SIZE);
 
 #define LOAD_DATA (conv1.load() && conv2.load() && conv3.load() && conv4.load() && conv5.load() && conv6.load() && conv7.load() && conv8.load() && conv9.load() && conv10.load() && conv11.load() && conv12.load() && conv13.load() && fc1.load() && fc2.load() && fc3.load())
@@ -746,7 +747,7 @@ struct Layer_t
 
   void copyDataToDevice()
   {
-    if (data_h != NULL) 
+    if (data_h != NULL)
       checkCudaErrors(cudaMemcpy(data_d, data_h, MSIZE(w_size), cudaMemcpyHostToDevice));
     if (bias_h != NULL)
       checkCudaErrors(cudaMemcpy(bias_d, bias_h, MSIZE(b_size), cudaMemcpyHostToDevice));
@@ -984,7 +985,8 @@ public:
                                        &vZero,
                                        layer.convDstTensorDesc,
                                        layer.output_d));
-    addBias(layer.convDstTensorDesc, layer, layer.outputs, layer.output_d);
+    std::cout << layer.outputs << std::endl;
+    // addBias(layer.convDstTensorDesc, layer, layer.outputs, layer.output_d);
     if (DEBUG)
       printDeviceVector("Conv Output:\n", layer.outputs * layer.out_height * layer.out_width, layer.output_d);
     if (layer.convFwdSizeInBytes != 0)
@@ -1543,27 +1545,27 @@ public:
 
 cv::Mat load_image(std::string example)
 {
-    cv::Mat image = cv::imread(example, cv::IMREAD_COLOR);
-    image.convertTo(image, CV_32FC3);
-    cv::normalize(image, image, 0, 1, cv::NORM_MINMAX);
-    return image;
+  cv::Mat image = cv::imread(example, cv::IMREAD_COLOR);
+  image.convertTo(image, CV_32FC3);
+  cv::normalize(image, image, 0, 1, cv::NORM_MINMAX);
+  return image;
 }
 
 std::pair<int, cv::Mat *> load_all()
 {
-    std::string scratch = getenv("SCRATCH");
-    std::string img_path = scratch + "/imagenette/imagenette2/train/*.JPEG";
-    // cv::String img_path = scratch + "/imagenette/imagenette2/val/n03888257/*.JPEG";
-    std::vector<cv::String> new_filename_vector;
-    cv::glob(img_path, new_filename_vector, true);
-    std::cout << new_filename_vector.size() << "\n";
+  std::string scratch = getenv("SCRATCH");
+  std::string img_path = scratch + "/imagenette/imagenette2/val/*.JPEG";
+  // cv::String img_path = scratch + "/imagenette/imagenette2/val/n03888257/*.JPEG";
+  std::vector<cv::String> new_filename_vector;
+  cv::glob(img_path, new_filename_vector, true);
+  std::cout << new_filename_vector.size() << "\n";
 
-    cv::Mat *data = new cv::Mat[new_filename_vector.size()];
-    for (int i = 0; i < new_filename_vector.size(); i++)
-    {
-        data[i] = load_image(new_filename_vector[i]);
-    }
-    return {new_filename_vector.size(), data};
+  cv::Mat *data = new cv::Mat[new_filename_vector.size()];
+  for (int i = 0; i < new_filename_vector.size(); i++)
+  {
+    data[i] = load_image(new_filename_vector[i]);
+  }
+  return {new_filename_vector.size(), data};
 }
 
 int main(int argc, char **argv)
@@ -1581,7 +1583,7 @@ int main(int argc, char **argv)
   }
 
   typedef MATRIX_DATA_TYPE value_type;
-  network_t<value_type> network {};
+  network_t<value_type> network{};
 
   NETWORK_ARCH
 
@@ -1593,11 +1595,10 @@ int main(int argc, char **argv)
   input = (float *)malloc(len * IMAGE_SIZE * sizeof(float));
   for (int i = 0; i < len; i++)
   {
-      float *fptr = data[i].ptr<float>(0);
-      std::copy(fptr, fptr + IMAGE_SIZE, input + IMAGE_SIZE * i);
+    float *fptr = data[i].ptr<float>(0);
+    std::copy(fptr, fptr + IMAGE_SIZE, input + IMAGE_SIZE * i);
   }
 
   float *output;
   network.learn_example(input, LAYER_NAMES, output, 1);
-
 }
