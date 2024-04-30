@@ -1,3 +1,4 @@
 build/
 opencv-4.x/
 opencv.zip
+*.out
