@@ -24,12 +24,10 @@
 #define CUBLAS_SCAL cublasSscal
 #define LEARNING_RATE (0.01)
 
-#define IMAGE_H (224)
-#define IMAGE_W (224)
-#define IMAGE_D (3)
 #define IMAGE_SIZE (IMAGE_H * IMAGE_W * IMAGE_D)
 #define BATCH_SIZE (1)
 #define DEBUG (1)
+
 #define MSIZE(a) ((a) * sizeof(value_type))
 
 typedef enum
@@ -42,7 +40,6 @@ typedef enum
   SOFTMAX_LAYER = 5
 } LayerType;
 
-#define BATCH_SIZE (1)
 #define IMAGE_H (224)
 #define IMAGE_W (224)
 #define IMAGE_D (3)
@@ -1296,39 +1293,39 @@ public:
       println("Performing forward propagation ...");
 
     convoluteForward(conv1, n, image_data_d);
-    convoluteForward(conv1act, n, conv1.output_d);
+    activationForward(conv1act, n, conv1.output_d);
     convoluteForward(conv2, n, conv1act.output_d);
-    convoluteForward(conv2act, n, conv2.output_d);
+    activationForward(conv2act, n, conv2.output_d);
     poolForward(pool1, n, conv2act.output_d);
 
     convoluteForward(conv3, n, pool1.output_d);
-    convoluteForward(conv3act, n, conv3.output_d);
+    activationForward(conv3act, n, conv3.output_d);
     convoluteForward(conv4, n, conv3act.output_d);
-    convoluteForward(conv4act, n, conv4.output_d);
+    activationForward(conv4act, n, conv4.output_d);
     poolForward(pool2, n, conv4act.output_d);
 
     convoluteForward(conv5, n, pool2.output_d);
-    convoluteForward(conv5act, n, conv5.output_d);
+    activationForward(conv5act, n, conv5.output_d);
     convoluteForward(conv6, n, conv5act.output_d);
-    convoluteForward(conv6act, n, conv6.output_d);
+    activationForward(conv6act, n, conv6.output_d);
     convoluteForward(conv7, n, conv6act.output_d);
-    convoluteForward(conv7act, n, conv7.output_d);
+    activationForward(conv7act, n, conv7.output_d);
     poolForward(pool3, n, conv7act.output_d);
 
     convoluteForward(conv8, n, pool3.output_d);
-    convoluteForward(conv8act, n, conv8.output_d);
+    activationForward(conv8act, n, conv8.output_d);
     convoluteForward(conv9, n, conv8act.output_d);
-    convoluteForward(conv9act, n, conv9.output_d);
-    convoluteForward(conv10, n, conv9.output_d);
-    convoluteForward(conv10act, n, conv10.output_d);
+    activationForward(conv9act, n, conv9.output_d);
+    convoluteForward(conv10, n, conv9act.output_d);
+    activationForward(conv10act, n, conv10.output_d);
     poolForward(pool4, n, conv10act.output_d);
 
     convoluteForward(conv11, n, pool4.output_d);
-    convoluteForward(conv11act, n, conv11.output_d);
+    activationForward(conv11act, n, conv11.output_d);
     convoluteForward(conv12, n, conv11act.output_d);
-    convoluteForward(conv12act, n, conv12.output_d);
+    activationForward(conv12act, n, conv12.output_d);
     convoluteForward(conv13, n, conv12act.output_d);
-    convoluteForward(conv13act, n, conv13.output_d);
+    activationForward(conv13act, n, conv13.output_d);
     poolForward(pool5, n, conv13act.output_d);
 
     fullyConnectedForward(fc1, n, pool5.output_d);
