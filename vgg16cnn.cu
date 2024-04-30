@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <string>
 #include "error_util.h" // Contains error handling functions
+#include <opencv2/opencv.hpp>
+#include <opencv2/imgcodecs.hpp>
 
 #define MATRIX_DATA_TYPE float
 #define CUBLAS_GEMM cublasSgemm
@@ -21,6 +23,12 @@
 #define CUBLAS_GEMV cublasSgemv
 #define CUBLAS_SCAL cublasSscal
 #define LEARNING_RATE (0.01)
+
+#define IMAGE_H (224)
+#define IMAGE_W (224)
+#define IMAGE_D (3)
+#define IMAGE_SIZE (IMAGE_H * IMAGE_W * IMAGE_D)
+#define BATCH_SIZE (1)
 
 #define MSIZE(a) ((a) * sizeof(value_type))
 
@@ -52,6 +60,39 @@ typedef enum
                             << std::flush))
 
 #define ND_TENSOR_DESCRIPTOR
+
+template <typename value_type>
+void printDeviceVector(std::string str, int size, value_type* vec_d, int n=1)
+{
+    for (int i = 0; i < n; ++i)
+    {    
+        value_type* vec;
+        vec = new value_type[size];
+        cudaDeviceSynchronize();
+        cudaMemcpy(vec, vec_d+i*size, MSIZE(size), cudaMemcpyDeviceToHost);
+        printHostVector(str, size, vec);
+        delete [] vec;
+    }
+}
+
+template <class value_type>
+void printDeviceVector(int size, value_type* vec_d)
+{
+    value_type *vec;
+    vec = new value_type[size];
+    cudaDeviceSynchronize();
+    cudaMemcpy(vec, vec_d, MSIZE(size), cudaMemcpyDeviceToHost);
+    std::cout.precision(5);
+    std::cout.setf( std::ios::fixed, std::ios::floatfield );
+    for (int i = 0; i < size; i++)
+    {
+        print(value_type(vec[i]) << " ");
+    }
+    println(" ");
+    delete [] vec;
+}
+
+
 void setTensorDesc(cudnnTensorDescriptor_t &tensorDesc,
                    cudnnTensorFormat_t &tensorFormat,
                    cudnnDataType_t &dataType,
@@ -93,7 +134,7 @@ void setTensorDesc(cudnnTensorDescriptor_t &tensorDesc,
   Layer_t<value_type> conv2;                                                                                                           \
   conv2.initConvLayer("conv2", /* inputs */ 3, /* outputs */ 64, /* kernel dim */ 3, /* stride */ 1, IMAGE_H, IMAGE_W, 0, BATCH_SIZE); \
   Layer_t<value_type> conv2act;                                                                                                        \
-  conv2act.initConvLayer("conv2act", conv2.outputs, BATCH_SIZE);                                                                       \
+  conv2act.initActLayer("conv2act", conv2.outputs, BATCH_SIZE);                                                                       \
   Layer_t<value_type> pool1;                                                                                                           \
   pool1.initPoolLayer("pool1", 2, 2, conv2, BATCH_SIZE);                                                                               \
   Layer_t<value_type> conv3;                                                                                                           \
@@ -1488,6 +1529,31 @@ public:
   }
 };
 
+cv::Mat load_image(std::string example)
+{
+    cv::Mat image = cv::imread(example, cv::IMREAD_COLOR);
+    image.convertTo(image, CV_32FC3);
+    cv::normalize(image, image, 0, 1, cv::NORM_MINMAX);
+    return image;
+}
+
+std::pair<int, cv::Mat *> load_all()
+{
+    std::string scratch = getenv("SCRATCH");
+    std::string img_path = scratch + "/imagenette/imagenette2/train/*.JPEG";
+    // cv::String img_path = scratch + "/imagenette/imagenette2/val/n03888257/*.JPEG";
+    std::vector<cv::String> new_filename_vector;
+    cv::glob(img_path, new_filename_vector, true);
+    std::cout << new_filename_vector.size() << "\n";
+
+    cv::Mat *data = new cv::Mat[new_filename_vector.size()];
+    for (int i = 0; i < new_filename_vector.size(); i++)
+    {
+        data[i] = load_image(new_filename_vector[i]);
+    }
+    return {new_filename_vector.size(), data};
+}
+
 int main(int argc, char **argv)
 {
   fs::path base_dir;
@@ -1501,4 +1567,25 @@ int main(int argc, char **argv)
     std::cout << "-o <path>: path to output directory" << std::endl;
     return 0;
   }
+
+  typedef MATRIX_DATA_TYPE value_type;
+  network_t<value_type> network {};
+
+  NETWORK_ARCH
+
+  float *input;
+  auto res = load_all();
+  int len = res.first;
+  len = 1;
+  cv::Mat *data = res.second;
+  input = (float *)malloc(len * IMAGE_SIZE);
+  for (int i = 0; i < len; i++)
+  {
+      float *fptr = data[i].ptr<float>(0);
+      std::copy(fptr, fptr + IMAGE_SIZE, input + IMAGE_SIZE * i);
+  }
+
+  float *output;
+  network.learn_example(input, LAYER_NAMES, output, 1);
+
 }
