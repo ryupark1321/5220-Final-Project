@@ -61,6 +61,25 @@ typedef enum
 
 #define ND_TENSOR_DESCRIPTOR
 
+__global__ void FillOnes(MATRIX_DATA_TYPE *vec, int size)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= size)
+        return;
+
+    vec[idx] = 1.0f;
+}
+
+template <typename value_type> 
+void printHostVector(std::string str, int size, value_type* vec){
+    println(str<<" ("<<size<<") ");
+    for (int i = 0; i < minn(size,400); i++)
+    {
+        print(vec[i] << " ");
+    }
+    println(" "); 
+}
+
 template <typename value_type>
 void printDeviceVector(std::string str, int size, value_type* vec_d, int n=1)
 {
@@ -91,7 +110,6 @@ void printDeviceVector(int size, value_type* vec_d)
     println(" ");
     delete [] vec;
 }
-
 
 void setTensorDesc(cudnnTensorDescriptor_t &tensorDesc,
                    cudnnTensorFormat_t &tensorFormat,
@@ -132,7 +150,7 @@ void setTensorDesc(cudnnTensorDescriptor_t &tensorDesc,
   Layer_t<value_type> conv1act;                                                                                                        \
   conv1act.initActLayer("conv1act", conv1.outputs, BATCH_SIZE);                                                                        \
   Layer_t<value_type> conv2;                                                                                                           \
-  conv2.initConvLayer("conv2", /* inputs */ 3, /* outputs */ 64, /* kernel dim */ 3, /* stride */ 1, IMAGE_H, IMAGE_W, 0, BATCH_SIZE); \
+  conv2.initConvLayer("conv2", /* inputs */ 64, /* outputs */ 64, /* kernel dim */ 3, /* stride */ 1, conv1.out_height, conv1.out_width, 0, BATCH_SIZE); \
   Layer_t<value_type> conv2act;                                                                                                        \
   conv2act.initActLayer("conv2act", conv2.outputs, BATCH_SIZE);                                                                       \
   Layer_t<value_type> pool1;                                                                                                           \
@@ -1249,12 +1267,12 @@ public:
       printDeviceVector(" gconvW: ", layer.w_size, gconvW);
 
     value_type lr = value_type(-LEARNING_RATE); // learning rate
-    checkCudaErrors(cublasDaxpy(cublasHandle,
+    checkCudaErrors(cublasSaxpy(cublasHandle,
                                 layer.outputs * layer.inputs * layer.kernel_dim * layer.kernel_dim,
                                 &lr,
                                 gconvW, 1,
                                 layer.data_d, 1));
-    checkCudaErrors(cublasDaxpy(cublasHandle,
+    checkCudaErrors(cublasSaxpy(cublasHandle,
                                 layer.outputs,
                                 &lr,
                                 gconvB, 1,
@@ -1349,7 +1367,7 @@ public:
 
     value_type predictions[n];
 
-    predict_example(image_data_d, fc1, fc1act, fc2, fc2act, predictions, _batch_size);
+    predict_example(image_data_d, LAYER_NAMES, predictions, _batch_size);
 
     // if (DEBUG) println("Performing backward propagation ...");
     value_type *diffData = NULL;
